@@ -28,7 +28,7 @@ services:
       - gateway
     volumes:
       - ./config.runtime.json:/home/picoclaw/.picoclaw/config.json:ro
-      - ./secrets/gws-token.json:/home/picoclaw/.config/gws/credentials.json:ro
+      - ./secrets/token.json:/home/picoclaw/.config/gws/credentials.json:ro
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - GWS_AUTH_TOKEN_PATH=/home/picoclaw/.config/gws/token.json

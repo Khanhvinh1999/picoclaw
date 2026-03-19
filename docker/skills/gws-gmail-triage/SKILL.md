@@ -22,6 +22,19 @@ Show unread inbox summary (sender, subject, date)
 gws gmail +triage
 ```
 
+## Telegram-friendly (what to say)
+
+In Telegram, you don't need to remember flags. Ask like this:
+
+- "Show my unread inbox summary (use gws-gmail-triage)."
+- "Triage my inbox, show top 3."
+- "Summarize unread emails from:boss, top 5."
+
+Implementation rule for the agent:
+
+- Run the command with the `exec` tool using a **literal** command string.
+- Do **not** use shell interpolation like `${VAR}`, `$(...)`, or backticks in the command.
+
 ## Flags
 
 | Flag | Required | Default | Description |

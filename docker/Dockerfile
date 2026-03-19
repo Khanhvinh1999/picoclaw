@@ -19,6 +19,10 @@ RUN mkdir -p /home/picoclaw/.config/gws && \
 COPY skills/ /home/picoclaw/.picoclaw/workspace/skills/
 RUN chown -R picoclaw:picoclaw /home/picoclaw/.picoclaw/workspace/skills
 
+# Bootstrap rules always loaded into system prompt
+COPY bootstrap/AGENTS.md /home/picoclaw/.picoclaw/workspace/AGENTS.md
+RUN chown -R picoclaw:picoclaw /home/picoclaw/.picoclaw/workspace/AGENTS.md
+
 USER picoclaw
 
 ENTRYPOINT ["picoclaw"]
