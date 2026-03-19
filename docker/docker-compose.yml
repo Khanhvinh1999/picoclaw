@@ -1,41 +1,42 @@
 services:
   # ─────────────────────────────────────────────
   # PicoClaw Agent (one-shot query)
-  #   docker compose -f docker/docker-compose.yml run --rm picoclaw-agent -m "Hello"
+  #   cd docker && docker compose run --rm picoclaw-agent -m "Hello"
   # ─────────────────────────────────────────────
   picoclaw-agent:
-    image: docker.io/sipeed/picoclaw:latest
+    build: .
+    image: picoclaw:local
     container_name: picoclaw-agent
     profiles:
       - agent
-    # Uncomment to access host network; leave commented unless needed.
-    #extra_hosts:
-    #  - "host.docker.internal:host-gateway"
     volumes:
-      - ./data:/root/.picoclaw
+      - ./config.runtime.json:/home/picoclaw/.picoclaw/config.json:ro
     entrypoint: ["picoclaw", "agent"]
     stdin_open: true
     tty: true
 
   # ─────────────────────────────────────────────
-  # PicoClaw Gateway (Long-running Bot)
-  #   docker compose -f docker/docker-compose.yml --profile gateway up
+  # PicoClaw Gateway (Long-running Telegram Bot)
+  #   cd docker && docker compose --profile gateway up -d
   # ─────────────────────────────────────────────
   picoclaw-gateway:
-    image: docker.io/sipeed/picoclaw:latest
+    build: .
+    image: picoclaw:local
     container_name: picoclaw-gateway
     restart: on-failure
     profiles:
       - gateway
-    # Uncomment to access host network; leave commented unless needed.
-    #extra_hosts:
-    #  - "host.docker.internal:host-gateway"
     volumes:
-      - ./data:/root/.picoclaw
+      - ./config.runtime.json:/home/picoclaw/.picoclaw/config.json:ro
+      - ./secrets/gws-token.json:/home/picoclaw/.config/gws/credentials.json:ro
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GWS_AUTH_TOKEN_PATH=/home/picoclaw/.config/gws/token.json
+      - GWS_AUTH_CREDENTIALS_PATH=/home/picoclaw/.config/gws/credentials.json
 
   # ─────────────────────────────────────────────
   # PicoClaw Launcher (Web Console + Gateway)
-  #   docker compose -f docker/docker-compose.yml --profile launcher up
+  #   cd docker && docker compose --profile launcher up
   # ─────────────────────────────────────────────
   picoclaw-launcher:
     image: docker.io/sipeed/picoclaw:launcher
@@ -45,6 +46,9 @@ services:
       - launcher
     environment:
       - PICOCLAW_GATEWAY_HOST=0.0.0.0
+      - GOOGLE_WORKSPACE_CLI_CLIENT_ID=${GOOGLE_WORKSPACE_CLI_CLIENT_ID}
+      - GOOGLE_WORKSPACE_CLI_CLIENT_SECRET=${GOOGLE_WORKSPACE_CLI_CLIENT_SECRET}
+      - GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE=/root/.picoclaw/workspace/skills/gws-gmail/token.json
     ports:
       - "127.0.0.1:18800:18800"
       - "127.0.0.1:18790:18790"
