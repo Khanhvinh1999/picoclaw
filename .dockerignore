@@ -8,3 +8,10 @@ config/
 *.md
 LICENSE
 assets/
+/docker/data/config.json
+/docker/data/workspace/cron
+/docker/data/workspace/cron/
+/docker/data/workspace/cron/**
+/docker/data/workspace/state
+/docker/data/workspace/state/
+/docker/data/workspace/state/**

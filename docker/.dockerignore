@@ -1,0 +1,7 @@
+# Exclude all runtime data (config, sessions, state, cron, etc.)
+data/
+.env
+.DS_Store
+config.runtime.json
+skills/.DS_Store
+skills/**/.DS_Store
