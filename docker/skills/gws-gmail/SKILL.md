@@ -18,6 +18,44 @@ metadata:
 gws gmail <resource> <method> [flags]
 ```
 
+## Telegram-friendly: “latest emails (with body)”
+
+User may ask in natural language, for example:
+
+- "Show me the 3 latest emails and include the body."
+- "Get the latest 5 emails from:boss and show the content."
+
+Implementation rule for the agent:
+
+- Use the `exec` tool to run **literal** `gws ...` commands.
+- Do **not** use shell interpolation like `${VAR}`, `$(...)`, or backticks.
+
+### Step 1 — List latest message IDs
+
+```bash
+gws gmail users messages list --params '{"userId":"me","maxResults":3}'
+```
+
+Optional filters:
+
+```bash
+gws gmail users messages list --params '{"userId":"me","maxResults":3,"q":"is:unread"}'
+gws gmail users messages list --params '{"userId":"me","maxResults":5,"q":"from:boss"}'
+```
+
+### Step 2 — Fetch each message (full payload)
+
+For each message id returned above, run:
+
+```bash
+gws gmail users messages get --params '{"userId":"me","id":"MESSAGE_ID","format":"full"}'
+```
+
+Then extract and present to the user:
+
+- Subject, From, Date
+- A short body preview (truncate if long)
+
 ## Helper Commands
 
 | Command | Description |
