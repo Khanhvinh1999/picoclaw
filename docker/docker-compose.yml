@@ -23,12 +23,13 @@ services:
     build: .
     image: picoclaw:local
     container_name: picoclaw-gateway
-    restart: on-failure
+    restart: unless-stopped
     profiles:
       - gateway
     volumes:
       - ./config.runtime.json:/home/picoclaw/.picoclaw/config.json:ro
       - ./secrets/token.json:/home/picoclaw/.config/gws/credentials.json:ro
+      - ./secrets/token.json:/home/picoclaw/.config/gws/token.json:ro
       - ./data/workspace:/home/picoclaw/.picoclaw/workspace
     environment:
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
