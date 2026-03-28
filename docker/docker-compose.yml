@@ -11,9 +11,14 @@ services:
       - agent
     volumes:
       - ./config.runtime.json:/home/picoclaw/.picoclaw/config.json:ro
+      - ./secrets/token.json:/home/picoclaw/.config/gws/credentials.json:ro
+      - ./secrets/token.json:/home/picoclaw/.config/gws/token.json:ro
+      - ./data/workspace:/home/picoclaw/.picoclaw/workspace
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - GWS_AUTH_TOKEN_PATH=/home/picoclaw/.config/gws/token.json
+      - GWS_AUTH_CREDENTIALS_PATH=/home/picoclaw/.config/gws/credentials.json
     entrypoint: ["picoclaw", "agent"]
-    stdin_open: true
-    tty: true
 
   # ─────────────────────────────────────────────
   # PicoClaw Gateway (Long-running Telegram Bot)

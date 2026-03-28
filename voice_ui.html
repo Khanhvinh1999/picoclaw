@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jarvis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;1,300&family=Space+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0a0a0f;
+      --surface:   #13131a;
+      --orb-idle:  #1e1e2e;
+      --orb-ring:  #2a2a3e;
+      --accent:    #7c6af5;
+      --accent2:   #a78bfa;
+      --danger:    #f04060;
+      --text:      #c8c8d8;
+      --text-dim:  #55556a;
+      --speak:     #34d399;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* ── Background ambient glow ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% -10%, rgba(124,106,245,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 80% 90%, rgba(167,139,250,0.06) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    /* ── Layout ── */
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 48px;
+    }
+
+    .label-top {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    /* ── Orb ── */
+    .orb-wrap {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .orb-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid var(--orb-ring);
+      animation: ring-breathe 4s ease-in-out infinite;
+    }
+
+    .orb-ring-2 {
+      position: absolute;
+      inset: -16px;
+      border-radius: 50%;
+      border: 1px solid transparent;
+      border-top-color: var(--accent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .orb {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 35%, #2a2845, var(--orb-idle));
+      box-shadow:
+        0 0 0 1px var(--orb-ring),
+        0 0 40px rgba(124,106,245,0.08),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+      transition: box-shadow 0.4s, background 0.4s;
+      animation: orb-breathe 4s ease-in-out infinite;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .orb-inner {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 40% 35%, rgba(124,106,245,0.35), rgba(124,106,245,0.05));
+      transition: all 0.4s;
+    }
+
+    /* ── State: listening ── */
+    body.listening .orb {
+      background: radial-gradient(circle at 38% 35%, #2d1a25, #1a0e14);
+      box-shadow:
+        0 0 0 1px rgba(240,64,96,0.4),
+        0 0 60px rgba(240,64,96,0.2),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+      animation: orb-pulse-listen 0.8s ease-in-out infinite;
+    }
+    body.listening .orb-inner {
+      background: radial-gradient(circle at 40% 35%, rgba(240,64,96,0.6), rgba(240,64,96,0.1));
+    }
+    body.listening .orb-ring { border-color: rgba(240,64,96,0.3); }
+    body.listening .orb-ring-2 { opacity: 0; }
+
+    /* ── State: thinking ── */
+    body.thinking .orb {
+      background: radial-gradient(circle at 38% 35%, #1e1a30, #13101e);
+      box-shadow:
+        0 0 0 1px rgba(124,106,245,0.5),
+        0 0 60px rgba(124,106,245,0.25),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      animation: none;
+    }
+    body.thinking .orb-inner {
+      background: conic-gradient(from 0deg, rgba(124,106,245,0.7), rgba(167,139,250,0.2), rgba(124,106,245,0.7));
+      animation: orb-spin 1.2s linear infinite;
+    }
+    body.thinking .orb-ring-2 { opacity: 1; animation: ring-spin 1.8s linear infinite; }
+    body.thinking .orb-ring { animation: none; opacity: 0.3; }
+
+    /* ── State: speaking ── */
+    body.speaking .orb {
+      background: radial-gradient(circle at 38% 35%, #102a20, #0a1a14);
+      box-shadow:
+        0 0 0 1px rgba(52,211,153,0.4),
+        0 0 60px rgba(52,211,153,0.2),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+      animation: orb-wave 1.5s ease-in-out infinite;
+    }
+    body.speaking .orb-inner {
+      background: radial-gradient(circle at 40% 35%, rgba(52,211,153,0.5), rgba(52,211,153,0.1));
+      animation: orb-wave-inner 1.5s ease-in-out infinite;
+    }
+    body.speaking .orb-ring { border-color: rgba(52,211,153,0.3); }
+
+    /* ── Animations ── */
+    @keyframes orb-breathe {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.03); }
+    }
+    @keyframes ring-breathe {
+      0%, 100% { transform: scale(1); opacity: 0.5; }
+      50%       { transform: scale(1.06); opacity: 0.2; }
+    }
+    @keyframes orb-pulse-listen {
+      0%, 100% { transform: scale(1); }
+      50%       { transform: scale(1.06); }
+    }
+    @keyframes orb-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    @keyframes ring-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    @keyframes orb-wave {
+      0%, 100% { transform: scale(1); }
+      25%       { transform: scale(1.05) scaleX(0.97); }
+      75%       { transform: scale(0.97) scaleX(1.05); }
+    }
+    @keyframes orb-wave-inner {
+      0%, 100% { transform: scale(1); opacity: 0.8; }
+      50%       { transform: scale(1.3); opacity: 0.4; }
+    }
+
+    /* ── Status text ── */
+    .status-wrap {
+      height: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .status {
+      font-size: 13px;
+      font-weight: 300;
+      color: var(--text-dim);
+      letter-spacing: 0.05em;
+      transition: color 0.4s;
+    }
+
+    .response-text {
+      font-size: 14px;
+      color: var(--text);
+      font-style: italic;
+      max-width: 320px;
+      text-align: center;
+      line-height: 1.6;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.5s, transform 0.5s;
+    }
+    .response-text.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    body.listening .status  { color: var(--danger); }
+    body.thinking  .status  { color: var(--accent2); }
+    body.speaking  .status  { color: var(--speak); }
+
+    /* ── Mic button ── */
+    .mic-btn {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 1px solid var(--orb-ring);
+      background: var(--surface);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      outline: none;
+      position: relative;
+    }
+    .mic-btn:hover { border-color: rgba(124,106,245,0.5); }
+    .mic-btn:active, .mic-btn.active {
+      border-color: var(--danger);
+      background: rgba(240,64,96,0.1);
+      box-shadow: 0 0 20px rgba(240,64,96,0.2);
+    }
+    .mic-btn svg { transition: all 0.2s; }
+    .mic-btn.active svg path { stroke: var(--danger); }
+
+    .mic-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* ── Transcribed text display ── */
+    .transcript {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-style: italic;
+      max-width: 300px;
+      text-align: center;
+      min-height: 18px;
+      transition: color 0.3s;
+    }
+
+    /* ── Error toast ── */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(240,64,96,0.15);
+      border: 1px solid rgba(240,64,96,0.3);
+      color: #f87191;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      transition: transform 0.3s ease;
+      pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ── Bottom controls ── */
+    .controls {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+
+    /* ── STT language (Groq Whisper) ── */
+    .stt-bar {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      z-index: 10;
+      user-select: auto;
+    }
+    .stt-bar select {
+      background: var(--surface);
+      border: 1px solid var(--orb-ring);
+      color: var(--text);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      max-width: 200px;
+    }
+    .stt-bar select:focus { outline: 1px solid var(--accent); }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <span class="label-top">JARVIS</span>
+
+  <div class="orb-wrap">
+    <div class="orb-ring-2"></div>
+    <div class="orb-ring"></div>
+    <div class="orb">
+      <div class="orb-inner"></div>
+    </div>
+  </div>
+
+  <div class="status-wrap">
+    <div class="status" id="status">Nhấn để nói</div>
+    <div class="response-text" id="responseText"></div>
+  </div>
+
+  <div class="controls">
+    <button class="mic-btn" id="micBtn" title="Hold to speak">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" stroke="#7c6af5" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="#7c6af5" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="12" y1="19" x2="12" y2="23" stroke="#7c6af5" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="8" y1="23" x2="16" y2="23" stroke="#7c6af5" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <span class="mic-hint" id="micHint">giữ để nói</span>
+    <div class="transcript" id="transcript"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="stt-bar" title="Ngôn ngữ nhận dạng giọng nói (Whisper). Auto = nói tiếng Anh vẫn ổn; bot vẫn trả lời tiếng Việt.">
+  <label for="sttLangSelect">STT</label>
+  <select id="sttLangSelect" aria-label="Speech-to-text language">
+    <option value="auto">Tự nhận (Auto)</option>
+    <option value="vi">Ép tiếng Việt</option>
+    <option value="en">Ép tiếng Anh</option>
+  </select>
+</div>
+
+<script>
+  const body      = document.body;
+  const micBtn    = document.getElementById('micBtn');
+  const statusEl  = document.getElementById('status');
+  const transcript = document.getElementById('transcript');
+  const responseEl = document.getElementById('responseText');
+  const micHint   = document.getElementById('micHint');
+  const toast     = document.getElementById('toast');
+  const sttLangSelect = document.getElementById('sttLangSelect');
+
+  const STT_LS_KEY = 'jarvis_stt_lang';
+  sttLangSelect.value = localStorage.getItem(STT_LS_KEY) || 'auto';
+  sttLangSelect.addEventListener('change', () => {
+    localStorage.setItem(STT_LS_KEY, sttLangSelect.value);
+  });
+
+  let mediaRecorder = null;
+  let audioChunks   = [];
+  let stream        = null;
+  let isBusy        = false;
+  let ws            = null;
+  let streamSessionId = 0;
+
+  // ── State transitions ──────────────────────────────────────────────────────
+
+  const STATES = {
+    idle:      { cls: '',          status: 'Nhấn để nói',    hint: 'giữ để nói' },
+    listening: { cls: 'listening', status: 'Đang nghe...',   hint: 'thả để gửi' },
+    thinking:  { cls: 'thinking',  status: 'Đang xử lý...', hint: '' },
+    speaking:  { cls: 'speaking',  status: 'Đang nói...',    hint: '' },
+  };
+
+  function setState(name) {
+    const s = STATES[name];
+    body.className = s.cls;
+    statusEl.textContent = s.status;
+    micHint.textContent  = s.hint;
+  }
+
+  function showResponse(text) {
+    responseEl.textContent = text;
+    responseEl.classList.add('visible');
+  }
+
+  function clearResponse() {
+    responseEl.classList.remove('visible');
+    setTimeout(() => { responseEl.textContent = ''; }, 500);
+  }
+
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  // ── MediaRecorder setup ────────────────────────────────────────────────────
+
+  async function getStream() {
+    if (!stream) {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    }
+    return stream;
+  }
+
+  async function startRecording() {
+    if (isBusy) return;
+    try {
+      const s = await getStream();
+      audioChunks = [];
+
+      // Pick best supported mime type — ordered for Groq Whisper compatibility
+      const mimeType = [
+        'audio/webm;codecs=opus',  // Chrome macOS/Win
+        'audio/mp4',               // Safari macOS/iOS
+        'audio/webm',              // Chrome fallback
+        'audio/ogg;codecs=opus',   // Firefox
+        '',                        // Browser default
+      ].find(m => !m || MediaRecorder.isTypeSupported(m)) || '';
+
+      mediaRecorder = new MediaRecorder(s, mimeType ? { mimeType } : {});
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.start(100);
+
+      micBtn.classList.add('active');
+      setState('listening');
+      transcript.textContent = '';
+      clearResponse();
+    } catch (err) {
+      showToast('Không thể truy cập microphone: ' + err.message);
+    }
+  }
+
+  async function stopRecording() {
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+
+    return new Promise(resolve => {
+      mediaRecorder.onstop = async () => {
+        micBtn.classList.remove('active');
+        const mimeType = mediaRecorder.mimeType || 'audio/webm';
+        const blob = new Blob(audioChunks, { type: mimeType });
+
+        if (blob.size < 1000) {
+          setState('idle');
+          showToast('Không nhận được âm thanh, thử lại nhé.');
+          resolve();
+          return;
+        }
+
+        isBusy = true;
+        setState('thinking');
+
+        try {
+          // Step 1: Transcribe
+          const formData = new FormData();
+          // Derive extension from actual recorded mime type
+          const actualMime = blob.type || mimeType || 'audio/webm';
+          let ext = 'webm';
+          if (actualMime.includes('mp4') || actualMime.includes('m4a')) ext = 'mp4';
+          else if (actualMime.includes('ogg')) ext = 'ogg';
+          else if (actualMime.includes('wav')) ext = 'wav';
+          // Create blob with clean mime type (no codec params) for proper content-type header
+          const cleanMime = actualMime.split(';')[0];
+          const cleanBlob = new Blob([blob], { type: cleanMime });
+          formData.append('audio', cleanBlob, `recording.${ext}`);
+          formData.append('stt_language', sttLangSelect.value || 'auto');
+          console.log('Sending audio:', actualMime, '->', cleanMime, ext, blob.size, 'bytes', 'stt=', sttLangSelect.value);
+
+          const txResp = await fetch('/transcribe', { method: 'POST', body: formData });
+          if (!txResp.ok) throw new Error('Transcription failed');
+
+          const { text } = await txResp.json();
+          if (!text) {
+            setState('idle');
+            showToast('Không nhận ra giọng nói, thử lại nhé.');
+            isBusy = false;
+            resolve();
+            return;
+          }
+
+          transcript.textContent = `"${text}"`;
+
+          // Step 2: Streamed chat + streamed audio (WebSocket)
+          await runStreamedSession(text);
+
+        } catch (err) {
+          showToast('Lỗi: ' + err.message);
+          setState('idle');
+        } finally {
+          isBusy = false;
+        }
+        resolve();
+      };
+      mediaRecorder.stop();
+    });
+  }
+
+  // ── Streaming session (LLM stream + TTS stream) ────────────────────────────
+
+  async function ensureWs() {
+    if (ws && ws.readyState === WebSocket.OPEN) return ws;
+    if (ws && (ws.readyState === WebSocket.CONNECTING)) {
+      await new Promise(r => setTimeout(r, 200));
+      return ensureWs();
+    }
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws/voice`);
+    await new Promise((resolve, reject) => {
+      ws.onopen = () => resolve();
+      ws.onerror = (e) => reject(new Error('WebSocket failed'));
+    });
+    return ws;
+  }
+
+  function createAudioStreamPlayer() {
+    const audio = new Audio();
+    audio.autoplay = true;
+    const ms = new MediaSource();
+    audio.src = URL.createObjectURL(ms);
+    let sb = null;
+    const queue = [];
+    let openResolve;
+    const opened = new Promise(r => openResolve = r);
+
+    ms.addEventListener('sourceopen', () => {
+      try {
+        sb = ms.addSourceBuffer('audio/mpeg');
+      } catch (e) {
+        // If MSE not supported, we will fallback to non-stream TTS elsewhere
+        sb = null;
+      }
+      if (sb) {
+        sb.addEventListener('updateend', () => {
+          if (queue.length && !sb.updating) sb.appendBuffer(queue.shift());
+        });
+      }
+      openResolve();
+    });
+
+    return {
+      audio,
+      opened,
+      append: async (bytes) => {
+        await opened;
+        if (!sb) return;
+        const u8 = new Uint8Array(bytes);
+        if (sb.updating || queue.length) queue.push(u8);
+        else sb.appendBuffer(u8);
+      },
+      end: async () => {
+        await opened;
+        try { if (ms.readyState === 'open') ms.endOfStream(); } catch (_) {}
+      }
+    };
+  }
+
+  async function runStreamedSession(text) {
+    const mySid = ++streamSessionId;
+    setState('thinking');
+    clearResponse();
+    let display = '';
+
+    const socket = await ensureWs();
+    const player = createAudioStreamPlayer();
+    let audioActive = false;
+    let ttsHigh = true;
+    let audioEndWatchdog = null;
+    let sessionUiClosed = false;
+
+    const clearAudioEndWatchdog = () => {
+      if (audioEndWatchdog) {
+        clearTimeout(audioEndWatchdog);
+        audioEndWatchdog = null;
+      }
+    };
+
+    const finishStreamUi = async () => {
+      if (sessionUiClosed || mySid !== streamSessionId) return;
+      sessionUiClosed = true;
+      clearAudioEndWatchdog();
+      socket.removeEventListener('close', onSocketClose);
+      try { await player.end(); } catch (_) {}
+      setState('idle');
+    };
+
+    function onSocketClose() {
+      if (mySid !== streamSessionId) return;
+      finishStreamUi();
+    }
+    socket.addEventListener('close', onSocketClose);
+
+    socket.onmessage = async (ev) => {
+      if (typeof ev.data === 'string') {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'text_start') {
+          if (msg.phase === 'final') display = '';
+        }
+        if (msg.type === 'text_delta') {
+          display += msg.delta;
+          showResponse(display);
+          // “heard” feeling: as soon as first chunk arrives, move out of thinking
+          if (display.length > 0) setState('speaking');
+        }
+        if (msg.type === 'audio_start') {
+          audioActive = true;
+          setState('speaking');
+        }
+        if (msg.type === 'text_end' && msg.phase === 'ack' && !ttsHigh) {
+          await finishStreamUi();
+        }
+        if (msg.type === 'text_end' && msg.phase === 'final') {
+          clearAudioEndWatchdog();
+          if (!audioActive) {
+            await finishStreamUi();
+          } else {
+            audioEndWatchdog = setTimeout(() => finishStreamUi(), 8000);
+          }
+        }
+        if (msg.type === 'audio_end') {
+          await finishStreamUi();
+        }
+        if (msg.type === 'error') {
+          showToast('Lỗi: ' + msg.message);
+          await finishStreamUi();
+        }
+      } else {
+        // binary audio chunk
+        audioActive = true;
+        await player.append(await ev.data.arrayBuffer());
+      }
+    };
+
+    socket.send(JSON.stringify({ text }));
+
+    // If no audio starts within 3s, stay in thinking but don’t block UI
+    setTimeout(() => {
+      if (!audioActive && isBusy) setState('thinking');
+    }, 3000);
+  }
+
+  // ── Legacy TTS (kept as fallback) ───────────────────────────────────────────
+
+  async function speak(text) {
+    try {
+      const r = await fetch('/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (r.ok && (r.headers.get('content-type') || '').includes('audio')) {
+        const blob = await r.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        await new Promise((resolve) => {
+          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.play().catch(() => { URL.revokeObjectURL(url); resolve(); });
+        });
+        setState('idle');
+        return;
+      }
+    } catch (e) {
+      console.warn('ElevenLabs TTS unavailable, using browser voice:', e);
+    }
+
+    // Fallback: browser SpeechSynthesis
+    if (!window.speechSynthesis) { setState('idle'); return; }
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    const voices = window.speechSynthesis.getVoices();
+    const viVoice = voices.find(v => v.lang.startsWith('vi'))
+                 || voices.find(v => v.lang.startsWith('en'));
+    if (viVoice) utt.voice = viVoice;
+    utt.lang  = 'vi-VN';
+    utt.rate  = 0.95;
+    utt.pitch = 1.0;
+    await new Promise((resolve) => {
+      utt.onend = () => { setState('idle'); resolve(); };
+      utt.onerror = () => { setState('idle'); resolve(); };
+      window.speechSynthesis.speak(utt);
+    });
+  }
+
+  // Load voices asynchronously (required on some browsers)
+  if (window.speechSynthesis) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }
+
+  // ── Mic button: hold to speak ──────────────────────────────────────────────
+
+  micBtn.addEventListener('mousedown',  e => { e.preventDefault(); startRecording(); });
+  micBtn.addEventListener('mouseup',    e => { e.preventDefault(); stopRecording(); });
+  micBtn.addEventListener('mouseleave', e => { if (mediaRecorder?.state === 'recording') stopRecording(); });
+
+  micBtn.addEventListener('touchstart', e => { e.preventDefault(); startRecording(); });
+  micBtn.addEventListener('touchend',   e => { e.preventDefault(); stopRecording(); });
+
+  // Spacebar shortcut
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && !e.repeat && !isBusy) { e.preventDefault(); startRecording(); }
+  });
+  document.addEventListener('keyup', e => {
+    if (e.code === 'Space') { e.preventDefault(); stopRecording(); }
+  });
+</script>
+</body>
+</html>
