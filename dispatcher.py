@@ -17,9 +17,12 @@ To run:
   1. Stop picoclaw-gateway + launcher: docker stop picoclaw-gateway picoclaw-launcher
   2. Run: python3 dispatcher.py
 
-ENV vars (override via export or .env):
+ENV vars (set in environment or in .env — see below):
   TELEGRAM_TOKEN, OPENROUTER_API_KEY, S1_MODEL, WORKSPACE_PATH, DOCKER_COMPOSE_DIR
   DISPATCHER_LOG_DIR — directory for dispatcher.log and picoclaw-agent.log (default: ./logs)
+
+Loads KEY=value from (first wins if already set): ./.env then ./docker/.env
+(no python-dotenv dependency).
 """
 
 import asyncio
@@ -27,6 +30,7 @@ import logging
 import os
 import re
 import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -35,10 +39,34 @@ from telegram import Update
 from telegram.constants import ChatAction
 from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
 
+
+def _load_env_files() -> None:
+    """Load KEY=value from .env files if present (same pattern as voice_server.py)."""
+    for env_path in (
+        Path(__file__).resolve().parent / ".env",
+        Path(__file__).resolve().parent / "docker" / ".env",
+    ):
+        if not env_path.is_file():
+            continue
+        try:
+            for line in env_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, _, val = line.partition("=")
+                key, val = key.strip(), val.strip().strip('"').strip("'")
+                if key and key not in os.environ:
+                    os.environ[key] = val
+        except OSError:
+            pass
+
+
+_load_env_files()
+
 # ── Config ────────────────────────────────────────────────────────────────────
 
-TELEGRAM_TOKEN     = os.getenv("TELEGRAM_TOKEN",    "8662639337:AAEN0AGFmMZy65QqHJC8l-fZJ69L512OJ6k")
-OPENROUTER_KEY     = os.getenv("OPENROUTER_API_KEY", "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")
+TELEGRAM_TOKEN     = os.getenv("TELEGRAM_TOKEN", "").strip()
+OPENROUTER_KEY     = os.getenv("OPENROUTER_API_KEY", "").strip()
 S1_MODEL           = os.getenv("S1_MODEL",           "google/gemini-2.0-flash-lite-001")
 WORKSPACE_PATH     = os.getenv("WORKSPACE_PATH",     str(Path(__file__).parent / "docker/data/workspace"))
 DOCKER_COMPOSE_DIR = os.getenv("DOCKER_COMPOSE_DIR", str(Path(__file__).parent / "docker"))
@@ -309,6 +337,13 @@ def main() -> None:
 ║  S1: Gemini Flash Lite  |  S2: PicoClaw Docker  ║
 ╚══════════════════════════════════════════════════╝
 """)
+    if not TELEGRAM_TOKEN:
+        log.error("TELEGRAM_TOKEN missing — set in .env or environment (see .env.example)")
+        sys.exit(1)
+    if not OPENROUTER_KEY:
+        log.error("OPENROUTER_API_KEY missing — set in .env or docker/.env")
+        sys.exit(1)
+
     log.info("Log directory: %s", LOG_DIR.resolve())
     log.info("S1 model: %s", S1_MODEL)
     log.info("S2 engine: picoclaw-agent (docker one-shot)")
